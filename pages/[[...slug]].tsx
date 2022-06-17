@@ -4,7 +4,6 @@ import path from "path";
 import fm from "front-matter";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
-import { useRouter } from "next/router";
 
 type FilePath = string;
 type UrlPath = string;
