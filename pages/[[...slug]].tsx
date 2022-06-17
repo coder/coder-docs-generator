@@ -10,6 +10,9 @@ type FilePath = string;
 type UrlPath = string;
 type Route = { path: FilePath; children?: Route[] };
 type Manifest = { versions: string[]; routes: Route[] };
+type NavItem = { title: string; path: UrlPath; children?: NavItem[] };
+type Nav = NavItem[];
+type FmAttributes = { title: string };
 
 const readContentFile = (filePath: string) => {
   const baseDir = process.cwd();
@@ -57,6 +60,34 @@ const mapRoutes = (manifest: Manifest): Record<UrlPath, FilePath> => {
   return paths;
 };
 
+const getNavigation = (manifest: Manifest): Nav => {
+  let nav: Nav = [];
+
+  const getNavItem = (route: Route): NavItem => {
+    const { attributes } = fm<FmAttributes>(readContentFile(route.path));
+    const navItem: NavItem = {
+      title: attributes.title,
+      path: transformFilePathToUrlPath(route.path),
+    };
+
+    if (route.children) {
+      navItem.children = [];
+
+      for (const childRoute of route.children) {
+        navItem.children.push(getNavItem(childRoute));
+      }
+    }
+
+    return navItem;
+  };
+
+  for (const route of manifest.routes) {
+    nav.push(getNavItem(route));
+  }
+
+  return nav;
+};
+
 export const getStaticPaths: GetStaticPaths = (req) => {
   const manifestContent = readContentFile("manifest.json");
   const manifest = JSON.parse(manifestContent) as Manifest;
@@ -83,16 +114,46 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const { body, attributes } = fm(readContentFile(filePath));
   // Serialize MDX to support custom components
   const content = await serialize(body);
+  const navigation = getNavigation(manifest);
 
   return {
-    props: { content, attributes },
+    props: { content, attributes, navigation },
   };
 };
 
-const DocsPage: NextPage<{ content: ComponentProps<typeof MDXRemote> }> = ({
-  content,
-}) => {
-  return <MDXRemote {...content} />;
+const SidebarNavItem: React.FC<{ item: NavItem }> = ({ item }) => {
+  return (
+    <div>
+      <a href="">{item.title}</a>
+
+      {item.children &&
+        item.children.map((subItem) => (
+          <SidebarNavItem key={subItem.path} item={subItem} />
+        ))}
+    </div>
+  );
+};
+
+const SidebarNav: React.FC<{ nav: Nav }> = ({ nav }) => {
+  return (
+    <div>
+      {nav.map((navItem) => (
+        <SidebarNavItem key={navItem.path} item={navItem} />
+      ))}
+    </div>
+  );
+};
+
+const DocsPage: NextPage<{
+  content: ComponentProps<typeof MDXRemote>;
+  navigation: Nav;
+}> = ({ content, navigation }) => {
+  return (
+    <>
+      <SidebarNav nav={navigation} />
+      <MDXRemote {...content} />
+    </>
+  );
 };
 
 export default DocsPage;
