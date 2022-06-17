@@ -34,9 +34,9 @@ const transformFilePathToUrlPath = (filePath: string) => {
     urlPath = urlPath.replace("index", "");
   }
 
-  // Remove index from the sub root files
-  if (urlPath.endsWith("/index")) {
-    urlPath = urlPath.replace("/index", "");
+  // Remove trailing slash
+  if (urlPath.endsWith("/")) {
+    urlPath = urlPath.replace(/\/+$/, "");
   }
 
   return urlPath;
