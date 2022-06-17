@@ -168,17 +168,11 @@ const DocsPage: NextPage<{
   content: string;
   navigation: Nav;
 }> = ({ content, navigation }) => {
-  const router = useRouter();
-
-  if (!router.isReady) {
-    return <></>;
-  }
-
   return (
-    <>
-      <SidebarNav nav={navigation} />
+    <div>
+      <SidebarNav nav={navigation}></SidebarNav>
       <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
-    </>
+    </div>
   );
 };
 
