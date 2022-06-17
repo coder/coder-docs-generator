@@ -1,6 +1,10 @@
 import { readFileSync } from "fs";
 import { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import path from "path";
+import { serialize } from "next-mdx-remote/serialize";
+import { MDXRemote } from "next-mdx-remote";
+import fm from "front-matter";
+import { ComponentProps } from "react";
 
 type FilePath = string;
 type UrlPath = string;
@@ -67,7 +71,7 @@ export const getStaticPaths: GetStaticPaths = (req) => {
   };
 };
 
-export const getStaticProps: GetStaticProps = (context) => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // When it is home page, the slug is undefined because there is no url path
   // so we make it an empty string to work good with the mapRoutes
   const { slug = [""] } = context.params as { slug: string[] };
@@ -76,15 +80,19 @@ export const getStaticProps: GetStaticProps = (context) => {
   const routes = mapRoutes(manifest);
   const urlPath = slug.join("/");
   const filePath = routes[urlPath];
-  const content = readContentFile(filePath);
+  const { body, attributes } = fm(readContentFile(filePath));
+  // Serialize MDX to support custom components
+  const content = await serialize(body);
 
   return {
-    props: { content },
+    props: { content, attributes },
   };
 };
 
-const DocsPage: NextPage<{ content: string }> = ({ content }) => {
-  return <div>{content}</div>;
+const DocsPage: NextPage<{ content: ComponentProps<typeof MDXRemote> }> = ({
+  content,
+}) => {
+  return <MDXRemote {...content} />;
 };
 
 export default DocsPage;
