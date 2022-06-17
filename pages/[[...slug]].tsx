@@ -1,10 +1,10 @@
 import { readFileSync } from "fs";
 import { GetStaticPaths, GetStaticProps, NextPage } from "next";
 import path from "path";
-import { serialize } from "next-mdx-remote/serialize";
-import { MDXRemote } from "next-mdx-remote";
 import fm from "front-matter";
-import { ComponentProps } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import { useRouter } from "next/router";
 
 type FilePath = string;
 type UrlPath = string;
@@ -60,8 +60,24 @@ const mapRoutes = (manifest: Manifest): Record<UrlPath, FilePath> => {
   return paths;
 };
 
+let manifest: Manifest;
+
+const getManifest = () => {
+  if (manifest) {
+    return manifest;
+  }
+
+  const manifestContent = readContentFile("manifest.json");
+  manifest = JSON.parse(manifestContent) as Manifest;
+  return manifest;
+};
+
+let navigation: Nav;
+
 const getNavigation = (manifest: Manifest): Nav => {
-  let nav: Nav = [];
+  if (navigation) {
+    return navigation;
+  }
 
   const getNavItem = (route: Route): NavItem => {
     const { attributes } = fm<FmAttributes>(readContentFile(route.path));
@@ -81,16 +97,21 @@ const getNavigation = (manifest: Manifest): Nav => {
     return navItem;
   };
 
+  navigation = [];
+
   for (const route of manifest.routes) {
-    nav.push(getNavItem(route));
+    navigation.push(getNavItem(route));
   }
 
-  return nav;
+  return navigation;
 };
 
-export const getStaticPaths: GetStaticPaths = (req) => {
-  const manifestContent = readContentFile("manifest.json");
-  const manifest = JSON.parse(manifestContent) as Manifest;
+const removeHtmlComments = (string: string) => {
+  return string.replace(/<!--[\s\S]*?-->/g, "");
+};
+
+export const getStaticPaths: GetStaticPaths = () => {
+  const manifest = getManifest();
   const routes = mapRoutes(manifest);
   const paths = Object.keys(routes).map((urlPath) => ({
     params: { slug: urlPath.split("/") },
@@ -102,18 +123,17 @@ export const getStaticPaths: GetStaticPaths = (req) => {
   };
 };
 
-export const getStaticProps: GetStaticProps = async (context) => {
+export const getStaticProps: GetStaticProps = (context) => {
   // When it is home page, the slug is undefined because there is no url path
   // so we make it an empty string to work good with the mapRoutes
   const { slug = [""] } = context.params as { slug: string[] };
-  const manifestContent = readContentFile("manifest.json");
-  const manifest = JSON.parse(manifestContent) as Manifest;
+  const manifest = getManifest();
   const routes = mapRoutes(manifest);
   const urlPath = slug.join("/");
   const filePath = routes[urlPath];
   const { body, attributes } = fm(readContentFile(filePath));
   // Serialize MDX to support custom components
-  const content = await serialize(body);
+  const content = removeHtmlComments(body);
   const navigation = getNavigation(manifest);
 
   return {
@@ -124,7 +144,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
 const SidebarNavItem: React.FC<{ item: NavItem }> = ({ item }) => {
   return (
     <div>
-      <a href="">{item.title}</a>
+      <a href={"/" + item.path}>{item.title}</a>
 
       {item.children &&
         item.children.map((subItem) => (
@@ -145,13 +165,19 @@ const SidebarNav: React.FC<{ nav: Nav }> = ({ nav }) => {
 };
 
 const DocsPage: NextPage<{
-  content: ComponentProps<typeof MDXRemote>;
+  content: string;
   navigation: Nav;
 }> = ({ content, navigation }) => {
+  const router = useRouter();
+
+  if (!router.isReady) {
+    return <></>;
+  }
+
   return (
     <>
       <SidebarNav nav={navigation} />
-      <MDXRemote {...content} />
+      <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
     </>
   );
 };
