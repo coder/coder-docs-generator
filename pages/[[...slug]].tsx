@@ -71,6 +71,18 @@ const transformFilePathToUrlPath = (filePath: string) => {
     urlPath = removeTrailingSlash(urlPath);
   }
 
+  urlPath = addBaseDocsPath(urlPath);
+
+  return urlPath;
+};
+
+const addBaseDocsPath = (urlPath: UrlPath) => {
+  if (process.env.NEXT_PUBLIC_DOCS_PATH) {
+    urlPath = `${process.env.NEXT_PUBLIC_DOCS_PATH}/${urlPath}`;
+  }
+
+  urlPath = removeTrailingSlash(urlPath);
+
   return urlPath;
 };
 
@@ -248,6 +260,16 @@ const slugifyTitle = (title: string) => {
   return _.kebabCase(title.toLowerCase());
 };
 
+// All assets are under the assets folder.
+// It is not the best way of doing that but it works
+const getImageUrl = (src: string | undefined) => {
+  if (src === undefined) {
+    return "";
+  }
+  const assetPath = src.split("assets/")[1];
+  return `/assets/${assetPath}`;
+};
+
 const DocsPage: NextPage<{
   content: string;
   navigation: Nav;
@@ -322,10 +344,9 @@ const DocsPage: NextPage<{
                       {children}
                     </Heading>
                   ),
-                  img: ({ node, ...props }) => (
+                  img: ({ src }) => (
                     <Img
-                      {...props}
-                      src={`/${props.src}`}
+                      src={getImageUrl(src)}
                       mb={2}
                       borderWidth={1}
                       borderColor="gray.200"
@@ -334,36 +355,55 @@ const DocsPage: NextPage<{
                       height="auto"
                     />
                   ),
-                  p: ({ node, ...props }) => <Text {...props} pt={2} pb={2} />,
-                  ul: ({ node, ...props }) => (
+                  p: ({ children }) => (
+                    <Text pt={2} pb={2}>
+                      {children}
+                    </Text>
+                  ),
+                  ul: ({ children }) => (
                     <UnorderedList
                       mb={4}
                       display="grid"
                       gridAutoFlow="row"
                       gap={2}
-                      {...props}
-                    />
+                    >
+                      {children}
+                    </UnorderedList>
                   ),
-                  ol: ({ node, ...props }) => (
+                  ol: ({ children }) => (
                     <OrderedList
                       mb={4}
                       display="grid"
                       gridAutoFlow="row"
                       gap={2}
-                      {...props}
-                    />
+                    >
+                      {children}
+                    </OrderedList>
                   ),
                   a: ({ children, href = "" }) => {
                     const isExternal =
                       href.startsWith("http") || href.startsWith("https");
 
                     if (!isExternal) {
+                      // Remove .md form the path
                       href = removeMkdExtension(href);
+
+                      // Remove the index path
+
+                      const isIndex = href.endsWith("index");
                       href = removeIndexFilename(href);
+
                       let basePath = router.asPath;
-                      // We want to remove old fragment references
+                      // We want to remove fragments
                       basePath = basePath.split("#")[0];
-                      href = basePath + "../" + href;
+                      // Make relative to the parent path
+                      // We can ignore if it is an index file because the /index is omitted from the url
+
+                      if (!isIndex) {
+                        href = basePath + "../" + href;
+                      } else {
+                        href = basePath + href;
+                      }
                     }
 
                     return (
