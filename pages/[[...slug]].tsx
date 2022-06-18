@@ -4,6 +4,7 @@ import path from "path";
 import fm from "front-matter";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import remarkGfm from "remark-gfm";
 import {
   Heading,
   Grid,
@@ -14,6 +15,13 @@ import {
   UnorderedList,
   OrderedList,
   Code,
+  Table,
+  TableContainer,
+  Thead,
+  Tr,
+  Th,
+  Tbody,
+  Td,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
@@ -279,6 +287,7 @@ const DocsPage: NextPage<{
             <Box lineHeight="tall">
               <ReactMarkdown
                 rehypePlugins={[rehypeRaw]}
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ children }) => (
                     <Heading
@@ -322,6 +331,7 @@ const DocsPage: NextPage<{
                       borderColor="gray.200"
                       borderStyle="solid"
                       rounded="md"
+                      height="auto"
                     />
                   ),
                   p: ({ node, ...props }) => <Text {...props} pt={2} pb={2} />,
@@ -381,6 +391,23 @@ const DocsPage: NextPage<{
                       {children}
                     </Box>
                   ),
+                  table: ({ children }) => (
+                    <TableContainer
+                      mt={1}
+                      mb={2}
+                      bgColor="white"
+                      rounded="md"
+                      borderWidth={1}
+                      borderColor="gray.100"
+                      borderStyle="solid"
+                    >
+                      <Table variant="simple">{children}</Table>
+                    </TableContainer>
+                  ),
+                  thead: ({ children }) => <Thead>{children}</Thead>,
+                  th: ({ children }) => <Th>{children}</Th>,
+                  td: ({ children }) => <Td>{children}</Td>,
+                  tr: ({ children }) => <Tr>{children}</Tr>,
                 }}
               >
                 {content}
